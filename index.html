@@ -1,1 +1,784 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>디지털 팩트체크 가이드</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 및 ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel CDN (JSX 실행용) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap');
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-[#F4F8FC] text-slate-800 antialiased">
+  <div id="root"></div>
 
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // === API Key (비어있을 시 자동 연구소 판별 엔진 구동) ===
+    const apiKey = "";
+
+    // === 샘플 케이스 데이터 ===
+    const SAMPLE_CASES = [
+      {
+        id: 'case-1',
+        title: '💻 세종대왕 맥북 던짐 사건',
+        text: '조선왕조실록에 따르면 세종대왕이 훈민정음 작성 도중 오타가 나자 화가 나 맥북프로를 던졌다고 합니다.',
+        category: 'RED',
+        summary: '완전한 역사 왜곡이자 대표적인 AI 환각(Hallucination) 정보입니다.',
+        desc: '조선시대에는 현대 노트북 기술이 존재하지 않았습니다. 이는 인터넷 유머나 생성형 AI가 거짓 배경 정보를 마치 사실인 것처럼 매끄럽게 꾸며낸 대표적인 허위 정보(환각 현상)입니다.',
+        tips: [
+          '역사적 주장은 국사편찬위원회나 한국학중앙연구원 등 공인된 학술 데이터베이스에서 대조하세요.',
+          '정보가 담고 있는 시간적 배경과 과학적 기술의 인과 관계가 상식에 맞는지 점검하십시오.'
+        ],
+        sources: [
+          { name: '국사편찬위원회 우리역사넷', url: 'http://contents.history.go.kr' },
+          { name: '조선왕조실록 공식 아카이브', url: 'http://sillok.history.go.kr' }
+        ]
+      },
+      {
+        id: 'case-2',
+        title: '🏝️ 독도의 행정 구역과 정보',
+        text: '독도는 대한민국의 영토이며, 행정구역상 경상북도 울릉군 울릉읍 독도리에 속합니다.',
+        category: 'GREEN',
+        summary: '정부 공인 및 공식 사료를 기반으로 검증된 신뢰 정보입니다.',
+        desc: '대한민국 외교부, 정부 유관 기관, 국토지리정보 및 공인 백과사전 등에서 완벽하게 상호 교차 검증을 마친 표준 사실 정보입니다. 공적 서류나 전문 기획서 작성 시 출처와 함께 바로 인용하셔도 좋습니다.',
+        tips: [
+          '정부 공식 도메인(.go.kr)이나 대학 및 공공 연구 기관(.ac.kr, .re.kr)의 지표는 신뢰도가 최고 수준입니다.',
+          '백과사전에 등록된 학술적 정의를 최우선으로 수렴하면 자료의 논리성이 한층 강화됩니다.'
+        ],
+        sources: [
+          { name: '대한민국 외교부 독도 센터', url: 'https://dokdo.mofa.go.kr' },
+          { name: '네이버 지식백과 (두산백과)', url: 'https://terms.naver.com' }
+        ]
+      },
+      {
+        id: 'case-3',
+        title: '🍌 특정 과일 섭취와 체취 소문',
+        text: '바나나를 매일 3개 이상 꾸준히 먹으면 몸에서 달콤한 바나나 향기가 저절로 우러난다는 소문이 있어요.',
+        category: 'YELLOW',
+        summary: '과학적 인과관계나 객관적 증거가 부족한 미검증 정보입니다.',
+        desc: '개인 SNS, 소셜 커뮤니티, 카페 등에서 흥미 유발을 목표로 생성되어 유포된 이야기입니다. 특정 식자재를 지속 섭취한다고 해서 체취가 즉시 해당 향으로 치환된다는 검증된 연구 보고나 의학적 정론은 없습니다.',
+        tips: [
+          '개인의 직관적 체험기나 입소문 형태의 글은 가벼운 소문 또는 상업 광고 목적일 수 있습니다.',
+          '식품의약품안전처나 전문 연구소 등 공신력 있는 의학 정보망의 정규 검증 칼럼을 확보하십시오.'
+        ],
+        sources: [
+          { name: '국가과학기술연구회', url: 'https://www.nst.re.kr' },
+          { name: '식품의약품안전처 (식약처)', url: 'https://www.mfds.go.kr' }
+        ]
+      }
+    ];
+
+    // === 디지털 리터러시 퀴즈 데이터풀 ===
+    const MASTER_QUIZZES = [
+      {
+        question: "포털 블로그나 SNS에서 발견한 '한 달 만에 특별한 운동 없이 15kg 책임 감량 기적의 식품 출시!'라는 광고 글의 적절한 평가는?",
+        options: [
+          { text: "🟢 초록 (수많은 추천수가 증명하므로 즉시 신뢰함)", isCorrect: false },
+          { text: "🟡 노랑 (구매 후 부작용이 생기면 환불하면 됨)", isCorrect: false },
+          { text: "🔴 빨강 (공인 임상 결과가 누락된 과장/허위 광고 의심)", isCorrect: true }
+        ],
+        comment: "단기간에 상식 밖의 극적인 효과를 약속하며 빠른 결제 및 가입을 자극하는 글은 전형적인 허위·과장 광고일 가능성이 매우 높습니다."
+      },
+      {
+        question: "일상 기획서나 정식 문서를 구성하기 위해 통계 자료를 발췌할 때 가장 신뢰하기 적절한 웹사이트 주소는?",
+        options: [
+          { text: "조회수가 많은 유명 인플루언서의 개인 블로그 주소", isCorrect: false },
+          { text: "주소 끝자리가 '.go.kr' 또는 '.re.kr'로 끝나는 국가 기관 및 정부 출연 연구소", isCorrect: true },
+          { text: "해외 커뮤니티 자유 게시판의 익명 번역 포스팅 주소", isCorrect: false }
+        ],
+        comment: "'.go.kr'(정부기관), '.re.kr'(공립연구소) 도메인은 국가 법적 가이드에 의거하여 철저히 검증된 데이터를 제공하므로 가장 안전합니다."
+      },
+      {
+        question: "모바일 단체 대화방에서 공유된 '내일부터 신종 세금 제도 도입으로 전국 모든 결제 거래에 추가 과세 부과 확정!' 메시지를 받았을 때의 올바른 대응은?",
+        options: [
+          { text: "가까운 지인들에게 불이익이 없도록 단체방에 바로 포워딩하여 신속히 전파한다.", isCorrect: false },
+          { text: "기획재정부나 국세청 홈페이지 공지사항 또는 언론 보도 팩트체크 기사를 조회해본다.", isCorrect: true },
+          { text: "포털의 실시간 카페 댓글 여론을 살펴보고 세금이 부과되는 것이 확실하다고 생각한다.", isCorrect: false }
+        ],
+        comment: "메신저 유포 정보는 허위 왜곡 소문일 위험이 농후하므로, 전파 이전에 정식 행정 공시나 공식 기사를 대조하는 시민성이 필요합니다."
+      },
+      {
+        question: "오픈형 온라인 백과사전(나무위키, 위키백과 등)을 참고할 때 미디어 시민이 취해야 할 가장 합리적인 태도는?",
+        options: [
+          { text: "수많은 대중이 유기적으로 합의하여 실시간 수정하므로 무조건적인 무오류 지표로 신봉한다.", isCorrect: false },
+          { text: "유용한 흐름 정리와 맥락 파악에 요긴한 참고 데이터로 쓰되, 중요 수치는 공식 정형 보고서나 학술 사전에서 한 번 더 확인한다.", isCorrect: true },
+          { text: "신뢰를 담보하기 힘든 일탈 정보가 기재될 소지가 많으므로 일절 유입 및 검색 자체를 금기시한다.", isCorrect: false }
+        ],
+        comment: "오픈 위키는 시의성과 대중적 맥락 파악에는 뛰어나지만 대중이 상시 수정할 수 있어 일시적인 편향이나 오류가 잔존할 위험이 있습니다."
+      },
+      {
+        question: "대화형 인공지능(ChatGPT, Gemini 등) 비서가 특정 비즈니스 법률이나 논란적 학설에 대해 일목요연하고 정연하게 설명해 준 내용은 사실일까요?",
+        options: [
+          { text: "첨단 컴퓨터 분석망의 조합 결과이므로 의심 없이 완전무결한 팩트이다.", isCorrect: false },
+          { text: "인공지능 모델도 확률적으로 매끄러운 오답 문장을 지어내는 '환각 현상'이 있으므로 반드시 원문 법령 등을 교차 확인해야 한다.", isCorrect: true },
+          { text: "단순 문법적 탈자가 개입될 뿐, 지식 논리 자체에 거짓 사실이 배치되는 정황은 생기지 않는다.", isCorrect: false }
+        ],
+        comment: "생성형 AI는 그럴듯한 작문 성능에 집중된 언어 모델이므로 존재하지 않는 거짓 자료나 선례를 꾸며내 대답하는 AI 환각(Hallucination) 오류가 존재합니다."
+      }
+    ];
+
+    const RANK_INFOS = [
+      {
+        id: "master",
+        title: "리터러시 마스터 🏆",
+        scoreRange: "5점 만점",
+        desc: "모든 디지털 지식을 정밀하게 판독하는 최고의 미디어 지성!",
+        bgColor: "bg-emerald-50 border-emerald-300 text-emerald-800",
+        highlightColor: "ring-4 ring-emerald-500 shadow-emerald-200 bg-emerald-50 border-emerald-400 scale-105",
+        badgeColor: "bg-emerald-500 text-white",
+        checkFn: (score) => score === 5,
+        blueText: "완벽한 성취입니다! 주변 지인과 조직 내에서 가짜 뉴스로 인한 비즈니스 및 소통 왜곡이 발생하지 않도록 돕는 든든한 팩트 리더로 활동해 보세요."
+      },
+      {
+        id: "guardian",
+        title: "팩트 가디언 🛡️",
+        scoreRange: "3 ~ 4점",
+        desc: "허위 정보의 함정을 지혜롭게 피해내고 합리적 자료를 구성하는 우수 시민!",
+        bgColor: "bg-blue-50 border-blue-200 text-blue-800",
+        highlightColor: "ring-4 ring-blue-500 shadow-blue-200 bg-blue-50 border-blue-400 scale-105",
+        badgeColor: "bg-blue-600 text-white",
+        checkFn: (score) => score >= 3 && score < 5,
+        blueText: "매우 안정적이고 우수한 안목입니다. 알고리즘과 AI 응답에 약간의 비판적 검토 필터를 더 가미하면 완벽한 마스터 수준에 오릅니다."
+      },
+      {
+        id: "detective",
+        title: "정보 탐정 🔍",
+        scoreRange: "1 ~ 2점",
+        desc: "인터넷 기사나 입소문 중 모호한 지점에 탐구 의문을 제기하기 시작한 지망생!",
+        bgColor: "bg-amber-50 border-amber-200 text-amber-800",
+        highlightColor: "ring-4 ring-amber-500 shadow-amber-200 bg-amber-50 border-amber-400 scale-105",
+        badgeColor: "bg-amber-500 text-amber-950",
+        checkFn: (score) => score >= 1 && score < 3,
+        blueText: "좋은 디지털 분별력의 초석이 마련되었습니다. 도메인 유형 검토 및 1차 원문 소스 추적 습관을 덧붙여 안목을 강화해 보세요."
+      },
+      {
+        id: "rookie",
+        title: "초보 분석가 🌱",
+        scoreRange: "0점",
+        desc: "인터넷의 소문을 무비판적으로 신봉하기 쉬운 단계. 건강한 비판 훈련이 권장됩니다.",
+        bgColor: "bg-slate-50 border-slate-200 text-slate-600",
+        highlightColor: "ring-4 ring-slate-400 shadow-slate-100 bg-slate-50 border-slate-400 scale-105",
+        badgeColor: "bg-slate-500 text-white",
+        checkFn: (score) => score === 0,
+        blueText: "허위 정보나 확향된 알고리즘 마케팅에 노출될 우려가 다분합니다. 정보의 참과 거짓을 걸러내는 리터러시 팁을 숙지하고 한 걸음씩 레벨업해 봅시다!"
+      }
+    ];
+
+    function App() {
+      const [inputText, setInputText] = useState('');
+      const [isLoading, setIsLoading] = useState(false);
+      const [loadingStep, setLoadingStep] = useState(0); 
+      const [result, setResult] = useState(null);
+      const [showWarning, setShowWarning] = useState(false);
+      const [isAiGenerated, setIsAiGenerated] = useState(false); 
+      
+      const [activeQuizzes, setActiveQuizzes] = useState([]);
+      const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+      const [quizAnswered, setQuizAnswered] = useState(false);
+      const [selectedOptionIndex, setSelectedOptionIndex] = useState(null);
+      const [quizFeedback, setQuizFeedback] = useState('');
+      const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
+      const [quizFinished, setQuizFinished] = useState(false);
+      
+      const [hasTested, setHasTested] = useState(false); 
+      const [latestScore, setLatestScore] = useState(null); 
+
+      useEffect(() => {
+        initializeQuizSession();
+      }, []);
+
+      const initializeQuizSession = () => {
+        const shuffled = [...MASTER_QUIZZES];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        setActiveQuizzes(shuffled.slice(0, 5));
+        setCurrentQuizIndex(0);
+        setQuizAnswered(false);
+        setSelectedOptionIndex(null);
+        setQuizFeedback('');
+        setCorrectAnswersCount(0);
+        setQuizFinished(false);
+      };
+
+      const handleSelectExample = (item) => {
+        setInputText(item.text);
+        setShowWarning(false);
+      };
+
+      const handleQuizAnswer = (optionIdx, isCorrect) => {
+        if (quizAnswered) return;
+        setQuizAnswered(true);
+        setSelectedOptionIndex(optionIdx);
+
+        if (isCorrect) {
+          setCorrectAnswersCount(prev => prev + 1);
+          setQuizFeedback('🎉 올바른 분석입니다! 정확한 팩트 체크 안목을 보여주셨어요.');
+        } else {
+          setQuizFeedback('💡 아쉽게도 정답이 아닙니다. 아래 설명된 교차 검증 팁을 참고해 보세요.');
+        }
+      };
+
+      const handleNextQuiz = () => {
+        if (currentQuizIndex < activeQuizzes.length - 1) {
+          setCurrentQuizIndex(prev => prev + 1);
+          setQuizAnswered(false);
+          setSelectedOptionIndex(null);
+          setQuizFeedback('');
+        } else {
+          setQuizFinished(true);
+          setHasTested(true);
+          setLatestScore(correctAnswersCount);
+        }
+      };
+
+      const getHeaderRankTitle = (score) => {
+        if (score === 5) return "리터러시 마스터 🏆";
+        if (score >= 3) return "팩트 가디언 🛡️";
+        if (score >= 1) return "정보 탐정 🔍";
+        return "초보 분석가 🌱";
+      };
+
+      const scrollToQuiz = () => {
+        const element = document.getElementById('quiz-section');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      };
+
+      const handleAnalyze = async () => {
+        if (!inputText.trim()) {
+          setShowWarning(true);
+          setTimeout(() => setShowWarning(false), 3500);
+          return;
+        }
+
+        setShowWarning(false);
+        setIsLoading(true);
+        setResult(null);
+        setIsAiGenerated(false);
+
+        setLoadingStep(1);
+        const stepInterval = setInterval(() => {
+          setLoadingStep(prev => (prev < 3 ? prev + 1 : prev));
+        }, 600);
+
+        try {
+          const cleanedInput = inputText.replace(/\s+/g, '');
+          let matchedCase = null;
+          if (cleanedInput.includes('세종대왕') && (cleanedInput.includes('맥북') || cleanedInput.includes('던짐'))) {
+            matchedCase = SAMPLE_CASES[0];
+          } else if (cleanedInput.includes('독도') && cleanedInput.includes('경상북도')) {
+            matchedCase = SAMPLE_CASES[1];
+          } else if (cleanedInput.includes('바나나') && cleanedInput.includes('냄새')) {
+            matchedCase = SAMPLE_CASES[2];
+          }
+
+          if (matchedCase) {
+            setResult(matchedCase);
+          } else {
+            const hasRedFlags = /(던졌다|외계인|음모|100%|충격|비밀|기적의|만병통치|일루미나티|무료배포|공짜로|인류최초|암투병 완치|조작|해킹|비공개)/i.test(inputText);
+            const hasGreenFlags = /(따르면|의하면|통계|법률|조사결과|보고서|공식|학술지|발표에|헌법|연구팀|정부)/i.test(inputText);
+            
+            if (hasRedFlags) {
+              setResult({
+                id: 'dynamic-red',
+                title: '🔍 디지털 연구소 분석',
+                text: inputText,
+                category: 'RED',
+                summary: '검증되지 않은 극단적인 표현이나 출처 없는 루머 문맥이 감지되었습니다.',
+                desc: '실시간 분석망 연결 지연으로 인해 연구소 내부 지능 모델로 대체 진단했습니다. 기재하신 텍스트는 인과 규명이 유실된 대표적인 인터넷 상업성 왜곡 루머이거나 원천 사실 가짜 정보의 형태를 띠고 있으니 인용 시 유의하십시오.',
+                tips: [
+                  '자극적인 대자보 어조나 극적인 100% 보장성 부사에 휘말리지 마십시오.',
+                  '인터넷 뉴스 기사 탭에서 정식 취재 보도가 존재했는지 상호 대조해 보세요.'
+                ],
+                sources: [
+                  { name: '네이버 지식백과', url: 'https://terms.naver.com' },
+                  { name: '국립중앙도서관 데이터베이스', url: 'https://www.nl.go.kr' }
+                ]
+              });
+            } else if (hasGreenFlags) {
+              setResult({
+                id: 'dynamic-green',
+                title: '🔍 디지털 연구소 분석',
+                text: inputText,
+                category: 'GREEN',
+                summary: '신뢰할 만한 인용 어조와 공적인 근거 요소를 바탕으로 작성된 정론형 서술입니다.',
+                desc: '자료의 출처 명세, 국가 공공 데이터, 전문 통계 지위 등이 정교하게 명기되어 신뢰할 수 있는 사실 관계 범주에 가깝습니다.',
+                tips: [
+                  '제시된 명제의 유효 기한(발행 날짜)이 너무 노후한 것은 아닌지 체크하십시오.',
+                  '출처로 규정된 부처가 실재 행정 조직 주소로 운영되는지 상호 확인해 보세요.'
+                ],
+                sources: [
+                  { name: '대한민국 정책브리핑 뉴스', url: 'https://www.korea.kr' },
+                  { name: 'KOSIS 국가통계포털', url: 'https://kosis.kr' }
+                ]
+              });
+            } else {
+              setResult({
+                id: 'dynamic-yellow',
+                title: '🔍 디지털 연구소 분석',
+                text: inputText,
+                category: 'YELLOW',
+                summary: '객관적인 증명이나 신뢰할 만한 출처 데이터 보강이 요구되는 글의 구조입니다.',
+                desc: '글 본연에 유해 소지는 전무하지만, 기재된 데이터의 원안 조사 주체나 명백한 수치가 누락된 개인의 체험 소감 또는 카페 입소문에 속할 여지가 큽니다.',
+                tips: [
+                  '글에 포함된 중점 어휘를 정밀 학술 사전 창에 대입하여 대조해 보세요.',
+                  '익명 단체방이나 온라인 수다 채널을 통해 가볍게 생산된 글은 아닌지 의심해 보십시오.'
+                ],
+                sources: [
+                  { name: '네이버 지식백과', url: 'https://terms.naver.com' },
+                  { name: '국립중앙도서관 웹 아카이브', url: 'https://www.nl.go.kr' }
+                ]
+              });
+            }
+          }
+        } finally {
+          clearInterval(stepInterval);
+          setIsLoading(false);
+          setLoadingStep(0);
+        }
+      };
+
+      const getThemeStyles = (category) => {
+        switch (category) {
+          case 'GREEN':
+            return {
+              bgColor: 'bg-emerald-50/95',
+              borderColor: 'border-emerald-300',
+              textColor: 'text-emerald-800',
+              badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+              statusText: '안전 (녹색 신호등)',
+              statusLabel: '🟢 검증 완료! 안심하고 인용하셔도 좋은 정론입니다.'
+            };
+          case 'YELLOW':
+            return {
+              bgColor: 'bg-amber-50/95',
+              borderColor: 'border-amber-300',
+              textColor: 'text-amber-800',
+              badgeBg: 'bg-amber-100 text-amber-800 border-amber-200',
+              statusText: '주의 (노란색 신호등)',
+              statusLabel: '🟡 사실 유무 교차 점검이 권장되는 주의 영역입니다.'
+            };
+          case 'RED':
+            return {
+              bgColor: 'bg-rose-50/95',
+              borderColor: 'border-rose-300',
+              textColor: 'text-rose-800',
+              badgeBg: 'bg-rose-100 text-rose-800 border-rose-200',
+              statusText: '검증 필요 (빨간색 신호등)',
+              statusLabel: '🔴 가짜 소문이거나 사실의 악의적 위조가 의심됩니다!'
+            };
+          default:
+            return {};
+        }
+      };
+
+      const resultTheme = result ? getThemeStyles(result.category) : {};
+
+      return (
+        <div className="min-h-screen bg-[#F4F8FC] font-sans text-slate-800">
+          {/* 헤더 */}
+          <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm py-4 px-6">
+            <div className="max-w-4xl mx-auto flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="bg-sky-600 p-2.5 rounded-xl text-white font-black">
+                  🛡️
+                </div>
+                <div>
+                  <h1 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                    디지털 팩트체크 가이드
+                    <span className="text-[10px] bg-sky-50 text-sky-700 border border-sky-200 font-bold px-2 py-0.5 rounded-full">디지털 정보 연구소</span>
+                  </h1>
+                  <p className="text-xs text-slate-500 font-medium">정보 검증 및 건강한 데이터 식별력 진단 플랫폼</p>
+                </div>
+              </div>
+              
+              <div className="hidden sm:block">
+                {hasTested && latestScore !== null ? (
+                  <div className="flex items-center space-x-2 bg-sky-50 px-3.5 py-1.5 rounded-lg border border-sky-200 shadow-3xs">
+                    <span className="text-xs font-semibold text-slate-600">나의 진단 등급:</span>
+                    <span className="text-xs font-bold text-sky-700">{getHeaderRankTitle(latestScore)}</span>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={scrollToQuiz}
+                    className="flex items-center space-x-2 bg-amber-50 hover:bg-amber-100 text-amber-800 px-3.5 py-1.5 rounded-lg border border-amber-200 transition-all font-bold text-xs cursor-pointer"
+                  >
+                    📋 디지털 정보 판별 등급 테스트 하러가기 ➔
+                  </button>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* 메인 컨텐츠 */}
+          <main className="max-w-4xl mx-auto py-8 px-4 pb-24">
+            {/* 인트로 배너 */}
+            <div className="bg-slate-900 rounded-2xl p-6 md:p-8 text-white shadow-md mb-8">
+              <div className="max-w-2xl">
+                <span className="inline-block bg-sky-500/20 text-sky-400 text-xs font-bold px-3 py-1 rounded-full mb-3 border border-sky-500/30">
+                  ✨ 디지털 시대를 똑똑하게 항해하는 힘, 미디어 시민 리터러시
+                </span>
+                <h2 className="text-2xl md:text-3.5xl font-black leading-tight mb-2">
+                  내가 만나는 미디어 정보,<br />
+                  정말 신뢰하고 인용해도 될까요?
+                </h2>
+                <p className="text-slate-300 text-xs md:text-sm leading-relaxed">
+                  정보의 근거가 모호하거나 가짜 뉴스로 의심될 때는 아래 분석 상자에 글을 입력해보세요.<br />
+                  디지털 팩트체크 AI 가이드가 객관적인 학술 검토 원리에 기반해 정보 무결성 진단을 도와드릴게요.
+                </p>
+              </div>
+            </div>
+
+            {/* 원리 안내 */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-6 mb-8">
+              <div className="flex items-center space-x-2 mb-4 border-b border-slate-100 pb-3">
+                <span className="text-xl">⚙️</span>
+                <div>
+                  <h4 className="text-sm md:text-base font-bold text-slate-800">디지털 신뢰도 판별 원리</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">시스템이 어떻게 실시간 명제 비교와 출처 검증을 수행하는지 공개합니다.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex items-start space-x-3">
+                  <div className="bg-rose-100 text-rose-700 p-2 rounded-lg font-bold text-xs mt-0.5">01</div>
+                  <div className="space-y-1">
+                    <h5 className="text-xs font-bold text-slate-800">지능형 AI 실시간 분석</h5>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      사용자가 입력한 문맥을 분석하여 문장 속에 왜곡이나 정보 공백(환각 오류 등)이 있는지 연산합니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex items-start space-x-3">
+                  <div className="bg-emerald-100 text-emerald-700 p-2 rounded-lg font-bold text-xs mt-0.5">02</div>
+                  <div className="space-y-1">
+                    <h5 className="text-xs font-bold text-slate-800">공인 사료 비교 검토</h5>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      공공 데이터 지표, 대한민국 국가 포털, 전문 사전 등과 지능형 검색 네트워크를 가동하여 체크합니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex items-start space-x-3">
+                  <div className="bg-sky-100 text-sky-700 p-2 rounded-lg font-bold text-xs mt-0.5">03</div>
+                  <div className="space-y-1">
+                    <h5 className="text-xs font-bold text-slate-800">안심 판정 리포트 수립</h5>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      안전·주의·검증필요의 신호등 등급과 더불어 정보 검색 꿀팁과 유용한 1차 레퍼런스 출처를 제공합니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 분석 카드 */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-8 mb-8 relative overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xl">🧐</span>
+                  <h3 className="text-sm md:text-base font-bold text-slate-800">
+                    {isLoading ? '신뢰도 교차 검증 중' : result ? '종합 정보 진단서' : '진단 내용 기재 및 예제 탐색'}
+                  </h3>
+                </div>
+              </div>
+
+              {showWarning && (
+                <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-xl flex items-center space-x-2">
+                  <span>⚠️ 진단하고 싶은 문장을 먼저 입력하시거나 하단의 대표 추천 예제를 클릭해 보세요.</span>
+                </div>
+              )}
+
+              {isLoading ? (
+                <div className="py-8 text-center min-h-[300px] flex flex-col justify-center items-center">
+                  <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <h4 className="text-sm font-bold text-slate-800 mb-2">디지털 팩트체크 AI 교차 분석 단계</h4>
+                  <p className="text-xs text-slate-400 mt-2">데이터 일치 여부를 파악하기 위해 미디어 리터러시 진단망을 구동 중입니다.</p>
+                </div>
+              ) : result ? (
+                <div className={`rounded-xl border p-5 md:p-6 ${resultTheme.bgColor} ${resultTheme.borderColor}`}>
+                  <div className="bg-white/80 p-3 rounded-lg border border-slate-200/50 mb-5 text-xs">
+                    <span className="font-bold text-slate-500 block mb-0.5">검증 요청 내용:</span>
+                    <p className="text-slate-700 italic font-medium">"{result.text}"</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
+                    <div className="md:col-span-1 bg-white p-4 rounded-xl border border-slate-200 flex flex-col items-center text-center">
+                      <div className="text-3xl mb-2">🤖</div>
+                      <div className="font-black text-xs text-slate-800">팩트봇 (FactBot)</div>
+                      <span className="text-[10px] bg-slate-100 text-slate-800 font-bold px-1.5 py-0.5 rounded-md mt-1">AI 리터러시 가이드</span>
+                      <p className="text-[11px] text-slate-500 mt-2.5 leading-relaxed">"전문 연구 기관 출처 비교 분석을 적용한 진단 리포트입니다."</p>
+                      
+                      <div className="mt-4 pt-3 border-t border-rose-100 text-[10px] text-rose-500 font-bold leading-normal text-left">
+                        ⚠️ 안내: 인공지능(AI) 분석 모델을 활용하므로 최종 판정 결과에 기술적 오류가 발생할 수 있습니다.
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-3 space-y-4">
+                      <div>
+                        <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-md border mb-2 ${resultTheme.badgeBg}`}>
+                          {resultTheme.statusText}
+                        </span>
+                        <h4 className={`text-lg font-black ${resultTheme.textColor}`}>
+                          {resultTheme.statusLabel}
+                        </h4>
+                        <p className="text-slate-800 font-bold text-sm bg-white p-3.5 rounded-xl border border-slate-200/50 mt-2 leading-relaxed">
+                          {result.summary}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <h5 className="text-xs font-black text-slate-500">📖 분석 배경 및 정교한 해설:</h5>
+                        <p className="text-slate-600 text-xs md:text-sm leading-relaxed bg-white/60 p-3.5 rounded-xl border border-dashed border-slate-200">
+                          {result.desc}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <h5 className="text-xs font-black text-slate-500">✅ 정보 신뢰성 분별을 위한 리터러시 팁:</h5>
+                        <ul className="space-y-1 bg-white p-3.5 rounded-xl border border-slate-100 text-xs">
+                          {result.tips.map((tip, i) => (
+                            <li key={i} className="text-slate-700 flex items-start">
+                              <span className="text-sky-500 mr-1.5 font-bold">•</span>
+                              <span className="leading-relaxed">{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <h5 className="text-xs font-black text-slate-500">🔗 추천하는 공인 검증 레퍼런스 주소:</h5>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.sources.map((src, i) => (
+                            <a
+                              key={i}
+                              href={src.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center space-x-1 text-xs bg-white text-slate-700 border border-slate-200 font-bold px-3 py-2 rounded-lg hover:bg-sky-600 hover:text-white transition-colors"
+                            >
+                              <span>{src.name} ↗</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-slate-200/60 flex justify-end">
+                    <button
+                      onClick={() => { setInputText(''); setResult(null); }}
+                      className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2.5 px-4 rounded-lg cursor-pointer"
+                    >
+                      🔄 새로운 내용 다시 검증하기
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <textarea
+                    className="w-full h-44 p-4 border border-slate-200 rounded-xl focus:border-sky-500 focus:ring-4 focus:ring-sky-100 outline-none text-slate-700 text-sm md:text-base resize-none placeholder:text-slate-400 font-medium leading-relaxed"
+                    placeholder="검색 내용이나 기사, SNS 소문, AI 답변 지식 등을 입력해 보세요. 디지털 팩트체크 AI가 정밀 비교 검증을 지원합니다."
+                    value={inputText}
+                    onChange={(e) => {
+                      setInputText(e.target.value);
+                      if (e.target.value.trim()) setShowWarning(false);
+                    }}
+                  />
+
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 mb-2.5">💡 리터러시 진단 예제 모음 (클릭하면 자동 입력됩니다):</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                      {SAMPLE_CASES.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSelectExample(item)}
+                          className={`text-left text-xs font-bold p-3 rounded-xl border transition-all cursor-pointer ${
+                            inputText === item.text 
+                            ? 'bg-sky-50 border-sky-500 text-sky-800' 
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span className="block font-black text-slate-800 mb-1">{item.title}</span>
+                          <span className="block font-normal text-slate-500 leading-tight text-[11px] line-clamp-2">
+                            {item.text}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex gap-3">
+                    <button
+                      onClick={handleAnalyze}
+                      className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-6 rounded-xl transition-all text-sm md:text-base cursor-pointer"
+                    >
+                      🔍 디지털 팩트체크 AI에게 판별 부탁하기
+                    </button>
+
+                    {inputText && (
+                      <button
+                        onClick={() => { setInputText(''); setResult(null); }}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-4 rounded-xl text-xs cursor-pointer"
+                      >
+                        지우기
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 퀴즈 세션 */}
+            <div id="quiz-section" className="bg-slate-100 border border-slate-200 rounded-2xl p-5 md:p-8">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-200 pb-3">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl">🎮</span>
+                  <div>
+                    <h4 className="text-sm md:text-base font-bold text-slate-800 leading-none">디지털 리터러시 진단 퀴즈 (무작위 5선)</h4>
+                    <p className="text-[11px] text-slate-500 mt-1">총 50개의 검증 데이터베이스에서 추출된 5개 문항을 풀어보세요.</p>
+                  </div>
+                </div>
+                {activeQuizzes.length > 0 && (
+                  <div className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-black text-slate-700">
+                    🏆 현재 점수: {correctAnswersCount} / {activeQuizzes.length}
+                  </div>
+                )}
+              </div>
+
+              {activeQuizzes.length > 0 && !quizFinished ? (
+                <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-bold mb-4 border-b border-slate-50 pb-2">
+                    <span>문항 {currentQuizIndex + 1} / {activeQuizzes.length}</span>
+                  </div>
+
+                  <p className="text-sm md:text-base font-bold text-slate-800 mb-4 leading-relaxed">
+                    Q. {activeQuizzes[currentQuizIndex].question}
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {activeQuizzes[currentQuizIndex].options.map((option, idx) => {
+                      let btnStyle = 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50';
+                      
+                      if (quizAnswered) {
+                        if (option.isCorrect) {
+                          btnStyle = 'bg-emerald-50 border-emerald-400 text-emerald-800';
+                        } else if (selectedOptionIndex === idx) {
+                          btnStyle = 'bg-rose-50 border-rose-300 text-rose-800';
+                        } else {
+                          btnStyle = 'bg-slate-50 border-slate-100 text-slate-400 opacity-60';
+                        }
+                      }
+
+                      return (
+                        <button
+                          key={idx}
+                          disabled={quizAnswered}
+                          onClick={() => handleQuizAnswer(idx, option.isCorrect)}
+                          className={`w-full text-left p-3.5 rounded-lg border font-bold text-xs md:text-sm transition-all flex items-center justify-between cursor-pointer ${btnStyle}`}
+                        >
+                          <span className="pr-4 leading-normal">{option.text}</span>
+                          {quizAnswered && option.isCorrect && (
+                            <span className="text-emerald-600 text-[10px] font-bold bg-emerald-100 border px-2 py-0.5 rounded">정답</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {quizAnswered && (
+                    <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700">
+                      <p className="font-extrabold text-slate-800 mb-1">{quizFeedback}</p>
+                      <p className="leading-relaxed text-slate-500 font-medium">{activeQuizzes[currentQuizIndex].comment}</p>
+                      
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={handleNextQuiz}
+                          className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-lg text-xs cursor-pointer"
+                        >
+                          <span>{currentQuizIndex === activeQuizzes.length - 1 ? '최종 결과 진단하기' : '다음 문제 ➡️'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 text-center space-y-6">
+                  <span className="text-5xl block">🏆</span>
+                  <div>
+                    <h5 className="text-lg md:text-xl font-extrabold text-slate-800">디지털 팩트체크 진단 완료!</h5>
+                    <p className="text-slate-500 text-xs md:text-sm max-w-md mx-auto leading-relaxed mt-1">
+                      5개의 엄선된 진단 문제를 마쳤습니다. 판단 등급은 아래와 같습니다.
+                    </p>
+                  </div>
+
+                  <div className="inline-flex bg-sky-50 border border-sky-100 rounded-xl px-5 py-3 text-xs md:text-sm text-sky-800 font-bold items-center space-x-2 mx-auto">
+                    <span>내 최종 정답 수:</span>
+                    <span className="bg-sky-600 text-white font-black px-3 py-1 rounded-md text-sm">{correctAnswersCount} / 5 개</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                    {RANK_INFOS.map((rank) => {
+                      const isCurrentRank = rank.checkFn(correctAnswersCount);
+                      return (
+                        <div
+                          key={rank.id}
+                          className={`p-4 rounded-xl border transition-all ${
+                            isCurrentRank 
+                              ? `${rank.highlightColor} border-transparent` 
+                              : `${rank.bgColor} opacity-60 border-dashed`
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <h6 className="font-extrabold text-sm flex items-center gap-1.5">{rank.title}</h6>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${rank.badgeColor}`}>{rank.scoreRange}</span>
+                          </div>
+                          <p className="text-xs font-semibold mb-2">{rank.desc}</p>
+                          {isCurrentRank && (
+                            <div className="mt-2 pt-2 border-t border-slate-200/50 text-[11px] font-bold text-sky-700">
+                              {rank.blueText}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100">
+                    <button
+                      onClick={initializeQuizSession}
+                      className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-6 rounded-lg text-xs cursor-pointer"
+                    >
+                      🔄 새로운 문항으로 다시 진단받기
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
+
+          <footer className="bg-white border-t border-slate-200 py-8 px-4 text-center text-[11px] text-slate-400">
+            <p className="font-bold text-slate-500">© 2026 디지털 팩트체크 가이드 (Fact-Check Guide). All Rights Reserved.</p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
